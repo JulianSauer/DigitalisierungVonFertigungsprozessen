@@ -75,12 +75,12 @@ if __name__ == '__main__':
     # plt.show()
 
     def double_integral(data):
-        integrated_values = [0, 0]
+        integrated_values = []
+        print(len(data))
         for entry in data:
-            if entry[0] > 2:
-                val = entry[2] + entry[3] * 1j
-                x = val / (1j * (entry[1] * 2 * np.pi))
-                integrated_values.append(x / (1j * entry[1] * 2 * np.pi))
+            val = entry[2] + entry[3] * 1j
+            x = val / (1j * (entry[1] * 2 * np.pi))
+            integrated_values.append(x / (1j * entry[1] * 2 * np.pi))
         return np.array(integrated_values)
 
 
@@ -88,12 +88,13 @@ if __name__ == '__main__':
         return 1 / (m * np.sqrt((omega0 ** 2 - omega ** 2) ** 2 + 4 * gamma ** 2 * omega ** 2))
 
 
-    def error_function(args):
-        omegaomega_h = []
-        integrated_values = double_integral(partition)
-        for val in partition[:, 1]:
-            omegaomega_h.append(h_omega(val, args[0], args[1], args[2]) * 10 ** 6)
-        return np.linalg.norm(omegaomega_h - integrated_values * 10 ** 6) ** 2
+    def error_function(x0, *args):
+        omega_h = []
+        data = args[0]
+        integrated_values = double_integral(data)
+        for val in data[:, 1]:
+            omega_h.append(h_omega(val, x0[0], x0[1], x0[2]))
+        return np.linalg.norm(omega_h - integrated_values) ** 2
 
 
     FILE = "Versuchsdaten_Example.txt"
@@ -104,15 +105,15 @@ if __name__ == '__main__':
     LSL = _labShopLoader.LabShopLoader()
     partition = LSL.load(FILE)
 
-    popt = opt.minimize(error_function, [900, 0.1, 0.1], method="L-BFGS-B",
+    popt = opt.minimize(error_function, x0=[900, 0.1, 0.1], args=(partition[100:1255, :]), method="L-BFGS-B",
                         bounds=((0.1, np.inf), (0.1, np.inf), (0.1, np.inf)), tol=0.1)
     print("popt Werte:", popt.x)
     omegaH = []
     for val in partition[:, 1]:
-        omegaH.append(h_omega(val, popt.x[0], popt.x[1], popt.x[2]) * 10 ** 6)
+        omegaH.append(h_omega(val, popt.x[0], popt.x[1], popt.x[2]))
 
     _, axarr = plt.subplots(2, sharex=True)
-    axarr[0].plot(partition[:, 1], np.abs(double_integral(partition)) * 10 ** 6, label="2x integriertes Zeug")
-    axarr[0].plot(partition[:, 1], omegaH, label="OmegaH")
+    axarr[0].plot(partition[10:, 1], np.abs(double_integral(partition[10:, :])), label="2x integriertes Zeug")
+    axarr[1].plot(partition[:, 1], omegaH, label="OmegaH")
     plt.legend()
     plt.show()
