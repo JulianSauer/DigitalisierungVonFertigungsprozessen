@@ -69,6 +69,19 @@ if __name__ == '__main__':
 
     #plt.show()
 
+
+    def doubleIntegral(partition):
+        integratedValues=[0,0]
+        for entry in partition:
+            if entry[0] > 2:
+                val=entry[2]+entry[3]*1j
+                x=val/(1j*(entry[1]*2*np.pi))
+                integratedValues.append(x/(1j*entry[1]*2*np.pi))
+        return np.array(integratedValues)
+
+    def hOmega(omega, omega0, gamma, m):
+        return 1 / (m * np.sqrt( (omega0**2 - omega**2)**2  + 4*gamma**2*omega**2 ))
+
     def errorFunction(args):
         omegaH=[]
         integratedValues = doubleIntegral(partition)
@@ -85,24 +98,12 @@ if __name__ == '__main__':
     partition=LSL.load(FILE)
 
     popt = opt.minimize(errorFunction,[900,0.1,0.1],method="L-BFGS-B",bounds=((0.1,np.inf),(0.1,np.inf),(0.1,np.inf)),tol=0.1)
-    print("popt Werte:", poptx.x)
+    print("popt Werte:", popt.x)
     omegaH=[]
     for val in partition[:,1]:
-        omegaH.append(hOmega(val,popt3.x[0],popt3.x[1],popt3.x[2])*10**6)
+        omegaH.append(hOmega(val,popt.x[0],popt.x[1],popt.x[2])*10**6)
 
+    _, axarr = plt.subplots(2, sharex=True)
     axarr[0].plot(partition[:,1],omegaH, label = "OmegaH")
     plt.legend()
     plt.show()
-
-    def hOmega(omega, omega0, gamma, m):
-        return 1 / (m * np.sqrt( (omega0**2 - omega**2)**2  + 4*gamma**2*omega**2 ))
-
-    def doubleIntegral(partition):
-        integratedValues=[0,0]
-        for entry in partition:
-            if entry[0] > 2:
-                val=entry[2]+entry[3]*1j
-                x=val/(1j*(entry[1]*2*np.pi))
-                integratedValues.append(x/(1j*entry[1]*2*np.pi))
-        return np.array(integratedValues)
-
