@@ -9,6 +9,7 @@ import scipy.optimize as sy
 from matplotlib.widgets import Button
 import os
 import scipy.optimize as opt
+import math
 
 
 def to_local():
@@ -76,7 +77,6 @@ if __name__ == '__main__':
 
     def double_integral(data):
         integrated_values = []
-        print(len(data))
         for entry in data:
             val = entry[2] + entry[3] * 1j
             x = val / (1j * (entry[1] * 2 * np.pi))
@@ -85,35 +85,48 @@ if __name__ == '__main__':
 
 
     def h_omega(omega, omega0, gamma, m):
-        return 1 / (m * np.sqrt((omega0 ** 2 - omega ** 2) ** 2 + 4 * gamma ** 2 * omega ** 2))
+        return 1 / (m * np.sqrt((omega0 ** 2 - omega ** 2) ** 2 + 4 * gamma ** 2 * omega ** 2))*10**6
 
+
+    omega_sum=[]
 
     def error_function(x0, *args):
-        omega_h = []
+        global omega_sum
+        omega_h0=[]
+        omega_h1=[]
         data = args[0]
-        integrated_values = double_integral(data)
+        integrated_values = args[1]
         for val in data[:, 1]:
-            omega_h.append(h_omega(val, x0[0], x0[1], x0[2]))
-        return np.linalg.norm(omega_h - integrated_values) ** 2
+            omega_h0.append(h_omega(val, x0[0], x0[1], x0[2]))
+            omega_h1.append(h_omega(val, x0[3], x0[4], x0[5]))       
+        omega_sum = np.array(omega_h0)+np.array(omega_h1)
+
+        return np.linalg.norm(omega_sum - integrated_values) ** 2
 
 
-    FILE = "Versuchsdaten_Example.txt"
+    FILE = "FRF_1_XX.txt"
 
     if not os.path.isfile(FILE):
         print("File \"%s\" not found" % FILE)
         quit()
     LSL = _labShopLoader.LabShopLoader()
-    partition = LSL.load(FILE)
+    partition = LSL.load(FILE)[100:,:]
+    integrated_values = abs(double_integral(partition)*10**6)
 
-    popt = opt.minimize(error_function, x0=[900, 0.1, 0.1], args=(partition[100:1255, :]), method="L-BFGS-B",
-                        bounds=((0.1, np.inf), (0.1, np.inf), (0.1, np.inf)), tol=0.1)
+    popt = opt.minimize(error_function, x0=[1450,0.1,0.1,1050, 90, 30], args=(partition[0:2600, :],integrated_values[0:2600]), method="L-BFGS-B",
+                        bounds=((850, 1150), (0.1, np.inf), (0.1, np.inf),(1350, 1500), (0.1, np.inf), (0.1, np.inf)))
     print("popt Werte:", popt.x)
     omegaH = []
     for val in partition[:, 1]:
         omegaH.append(h_omega(val, popt.x[0], popt.x[1], popt.x[2]))
 
-    _, axarr = plt.subplots(2, sharex=True)
-    axarr[0].plot(partition[10:, 1], np.abs(double_integral(partition[10:, :])), label="2x integriertes Zeug")
-    axarr[1].plot(partition[:, 1], omegaH, label="OmegaH")
+    _, axarr = plt.subplots(2)
+    axarr[0].plot(partition[:2600, 1],  integrated_values[0:2600], label="2x integriertes Zeug")
+    axarr[0].plot(partition[:2600, 1], omega_sum[0:2600]-np.array(omegaH)[0:2600], label="OmegaH1")
+    axarr[0].plot(partition[:2600, 1], omega_sum[0:2600][0:2600], label="OmegaSum")
+    h_sonstwas= []
+    for f in range(0,3000,2):
+        h_sonstwas.append(h_omega(f,1500,1459,1.395))
+    axarr[1].plot(h_sonstwas, label="OmegaSum____")
     plt.legend()
     plt.show()
